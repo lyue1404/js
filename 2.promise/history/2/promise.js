@@ -28,7 +28,34 @@ function Promise(executor) {
 }
 
 function resolvePromise(promise2,x,resolve,reject) {//判断x是不是promise
-    
+    if(promise2 === x) {
+       reject(new TypeError('相互引用'));
+    }
+    let called;
+    if((x !== null && typeof x === 'object') || typeof x === 'function') {
+        try{
+            let then = x.then;
+            if(typeof then === 'function') {
+                then.call(x, y => {
+                    if(called) return;
+                    called = true;
+                    resolvePromise(promise2,y,resolve,reject);
+                }, r => {
+                    if(called) return;
+                    called = true;
+                    reject(r);
+                })
+            }else{
+                resolve(x);
+            }
+        }catch(e) {
+            if(called) return;
+            called = true;
+            reject(e);
+        }
+    }else{
+        resolve(x);
+    }
 }
 
 Promise.prototype.then = function(onFulfilled, onRejected) {
@@ -81,6 +108,15 @@ Promise.prototype.then = function(onFulfilled, onRejected) {
         }
     })
     return promise2;
+}
+
+Promise.defer = Promise.deferred = function() {
+    let dfd = {};
+    dfd.promise = new Promise((resolve, reject) => {
+        dfd.resolve = resolve;
+        dfd.reject = reject;
+    })
+    return dfd;
 }
 
 module.exports = Promise;
